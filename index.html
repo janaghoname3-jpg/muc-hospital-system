@@ -2,125 +2,76 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MUC Hospital System</title>
+<title>MUC Hospital</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root{
-  --primary:#480D08;
-  --secondary:#7a1f18;
-  --success:#2ecc71;
-  --warning:#f1c40f;
-  --danger:#e74c3c;
-}
-*{box-sizing:border-box;font-family:'Segoe UI',Tahoma}
 body{
-  margin:0;min-height:100vh;
-  background:linear-gradient(135deg,#3a0705,#6b1a14);
-  display:flex;flex-direction:column
-}
-header{
-  background:rgba(0,0,0,.25);
-  padding:18px 40px;color:white;
-  display:flex;justify-content:space-between;align-items:center
-}
-header button{
-  background:transparent;border:1px solid #fff;
-  color:white;padding:8px 18px;border-radius:20px;cursor:pointer
-}
-.main{
-  flex:1;
+  margin:0;
+  min-height:100vh;
+  background:#5a0f0b;
+  font-family:Arial;
   display:flex;
   justify-content:center;
-  align-items:flex-start;
-  padding:40px;
+  align-items:center;
+  color:#333;
 }
-.card,.dashboard{
-  background:white;border-radius:20px;
-  padding:30px;width:380px;
-  box-shadow:0 25px 50px rgba(0,0,0,.3)
+.card{
+  background:#fff;
+  padding:30px;
+  width:350px;
+  border-radius:15px;
 }
-.dashboard{width:100%;max-width:900px}
 .hidden{display:none}
-input,select{
-  width:100%;padding:12px;margin-bottom:12px;
-  border-radius:10px;border:1px solid #ccc
+input,select,button{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
 }
-.primary-btn{
-  width:100%;padding:12px;border:none;
-  border-radius:25px;background:linear-gradient(135deg,#480D08,#7a1f18);
-  color:white;font-size:16px;cursor:pointer
-}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:15px;
-  margin-bottom:20px
+button{
+  background:#5a0f0b;
+  color:white;
+  border:none;
+  cursor:pointer;
 }
 .box{
-  background:#f8f6f6;
-  padding:20px;
-  border-radius:15px;
-  text-align:center
+  background:#f3f3f3;
+  padding:15px;
+  margin:10px 0;
 }
-.badge{
-  padding:5px 12px;
-  border-radius:15px;
-  color:white;
-  font-size:13px
-}
-.pending{background:var(--warning);color:black}
-.approved{background:var(--success)}
-.rejected{background:var(--danger)}
 </style>
 </head>
 
 <body>
 
-<header>
-  <h2>MUC Hospital</h2>
-  <div id="navAuth">
-    <button onclick="showLogin()">Login</button>
-    <button onclick="showRegister()">Sign Up</button>
-  </div>
-  <div id="navLogout" class="hidden">
-    <button onclick="logout()">Logout</button>
-  </div>
-</header>
-
-<div class="main">
-
-<!-- Login -->
+<!-- LOGIN -->
 <div id="loginBox" class="card">
   <h3>Login</h3>
-  <form id="loginForm">
-    <input id="loginEmail" type="email" placeholder="Email" required>
-    <input id="loginPassword" type="password" placeholder="Password" required>
-    <button class="primary-btn" type="submit">Login</button>
-  </form>
+  <input id="loginEmail" placeholder="Email">
+  <input id="loginPassword" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <p><a href="#" onclick="showRegister()">Create account</a></p>
 </div>
 
-<!-- Register -->
+<!-- REGISTER -->
 <div id="registerBox" class="card hidden">
-  <h3>Create Account</h3>
-  <form id="registerForm">
-    <input id="regName" placeholder="Full Name" required>
-    <input id="regEmail" type="email" placeholder="Email" required>
-    <input id="regPassword" type="password" placeholder="Password" required>
-    <select id="regRole">
-      <option value="patient">Patient</option>
-      <option value="doctor">Doctor</option>
-    </select>
-    <button class="primary-btn" type="submit">Sign Up</button>
-  </form>
+  <h3>Register</h3>
+  <input id="regName" placeholder="Name">
+  <input id="regEmail" placeholder="Email">
+  <input id="regPassword" type="password" placeholder="Password">
+  <select id="regRole">
+    <option value="patient">Patient</option>
+    <option value="doctor">Doctor</option>
+  </select>
+  <button onclick="register()">Register</button>
+  <p><a href="#" onclick="showLogin()">Back to login</a></p>
 </div>
 
-<!-- Dashboard -->
-<div id="dashboard" class="dashboard hidden">
-  <h2 id="dashTitle"></h2>
-  <div id="dashContent"></div>
-</div>
-
+<!-- ADMIN -->
+<div id="adminBox" class="card hidden">
+  <h3>Admin Dashboard</h3>
+  <div id="doctors"></div>
+  <button onclick="logout()">Logout</button>
 </div>
 
 <script type="module">
@@ -139,20 +90,15 @@ import {
   getDoc,
   updateDoc,
   collection,
-  addDoc,
   getDocs,
   query,
-  where,
-  serverTimestamp
+  where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig={
   apiKey:"AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY",
   authDomain:"muc-hospital.firebaseapp.com",
-  projectId:"muc-hospital",
-  storageBucket:"muc-hospital.firebasestorage.app",
-  messagingSenderId:"613180719346",
-  appId:"1:613180719346:web:33ff3d5d633c8d7b49106b"
+  projectId:"muc-hospital"
 };
 
 const app=initializeApp(firebaseConfig);
@@ -161,126 +107,88 @@ const db=getFirestore(app);
 
 const loginBox=document.getElementById("loginBox");
 const registerBox=document.getElementById("registerBox");
-const dashboard=document.getElementById("dashboard");
-const dashTitle=document.getElementById("dashTitle");
-const dashContent=document.getElementById("dashContent");
-const navAuth=document.getElementById("navAuth");
-const navLogout=document.getElementById("navLogout");
+const adminBox=document.getElementById("adminBox");
+const doctorsDiv=document.getElementById("doctors");
 
-window.showLogin=()=>{loginBox.classList.remove("hidden");registerBox.classList.add("hidden")}
-window.showRegister=()=>{registerBox.classList.remove("hidden");loginBox.classList.add("hidden")}
+window.showRegister=()=>{
+  loginBox.classList.add("hidden");
+  registerBox.classList.remove("hidden");
+};
+window.showLogin=()=>{
+  registerBox.classList.add("hidden");
+  loginBox.classList.remove("hidden");
+};
 
-onAuthStateChanged(auth, async user=>{
-  if(!user){
-    navAuth.classList.remove("hidden");
-    navLogout.classList.add("hidden");
-    dashboard.classList.add("hidden");
-    showLogin();
-    return;
-  }
-
-  const snap=await getDoc(doc(db,"users",user.uid));
-  if(!snap.exists()){
-    await signOut(auth);
-    showLogin();
-    return;
-  }
-
-  const data=snap.data();
-
-  if(data.role==="doctor" && data.status!=="active"){
-    alert("Doctor pending admin approval");
-    await signOut(auth);
-    showLogin();
-    return;
-  }
-
-  navAuth.classList.add("hidden");
-  navLogout.classList.remove("hidden");
-  openDashboard(data.role);
-});
-
-registerForm.onsubmit=async e=>{
-  e.preventDefault();
-  const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
+window.register=async()=>{
+  const u=await createUserWithEmailAndPassword(
+    auth,
+    regEmail.value,
+    regPassword.value
+  );
   await setDoc(doc(db,"users",u.user.uid),{
     name:regName.value,
     email:regEmail.value,
     role:regRole.value,
-    status:regRole.value==="doctor"?"pending":"active"
+    status: regRole.value==="doctor" ? "pending" : "active"
   });
   alert("Account created");
   showLogin();
 };
 
-loginForm.onsubmit=async e=>{
-  e.preventDefault();
-  await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
+window.login=async()=>{
+  await signInWithEmailAndPassword(
+    auth,
+    loginEmail.value,
+    loginPassword.value
+  );
 };
 
-window.logout=async()=>{await signOut(auth)}
+window.logout=async()=>{
+  await signOut(auth);
+};
 
-function openDashboard(role){
-  dashboard.classList.remove("hidden");
-  loginBox.classList.add("hidden");
-  registerBox.classList.add("hidden");
-
-  dashTitle.innerText=role.toUpperCase()+" DASHBOARD";
-
-  if(role==="admin"){
-    dashContent.innerHTML=`
-      <div class="grid">
-        <div class="box" onclick="loadPendingDoctors()">Approve Doctors</div>
-        <div class="box" onclick="loadPendingAppointments()">Approve Appointments</div>
-      </div>
-      <div id="adminDoctors"></div>
-      <div id="adminAppointments"></div>
-    `;
-    loadPendingDoctors(); // ⭐ التعديل المهم
+onAuthStateChanged(auth, async user=>{
+  if(!user){
+    loginBox.classList.remove("hidden");
+    registerBox.classList.add("hidden");
+    adminBox.classList.add("hidden");
+    return;
   }
+
+  const snap=await getDoc(doc(db,"users",user.uid));
+  const data=snap.data();
+
+  if(data.role!=="admin"){
+    alert("Not admin");
+    await signOut(auth);
+    return;
+  }
+
+  loginBox.classList.add("hidden");
+  adminBox.classList.remove("hidden");
+  loadDoctors();
+});
+
+async function loadDoctors(){
+  doctorsDiv.innerHTML="";
+  const q=query(
+    collection(db,"users"),
+    where("role","==","doctor"),
+    where("status","==","pending")
+  );
+  const s=await getDocs(q);
+  s.forEach(d=>{
+    doctorsDiv.innerHTML+=`
+      <div class="box">
+        ${d.data().name} <br>
+        <button onclick="approve('${d.id}')">Approve</button>
+      </div>`;
+  });
 }
 
-window.loadPendingDoctors=async()=>{
-  adminDoctors.innerHTML="<h3>Pending Doctors</h3>";
-  const q=query(collection(db,"users"),
-    where("role","==","doctor"),
-    where("status","==","pending"));
-  const s=await getDocs(q);
-  s.forEach(d=>{
-    adminDoctors.innerHTML+=`
-      <div class="box">
-        ${d.data().name}<br>${d.data().email}
-        <br><br>
-        <button onclick="approveDoctor('${d.id}')">Approve</button>
-      </div>`;
-  });
-};
-
-window.approveDoctor=async(uid)=>{
-  await updateDoc(doc(db,"users",uid),{status:"active"});
-  loadPendingDoctors();
-};
-
-window.loadPendingAppointments=async()=>{
-  adminAppointments.innerHTML="<h3>Pending Appointments</h3>";
-  const q=query(collection(db,"appointments"),
-    where("status","==","pending"));
-  const s=await getDocs(q);
-  s.forEach(d=>{
-    const a=d.data();
-    adminAppointments.innerHTML+=`
-      <div class="box">
-        ${a.date} - ${a.time}
-        <br><br>
-        <button onclick="updateAppointment('${d.id}','approved')">Approve</button>
-        <button onclick="updateAppointment('${d.id}','rejected')">Reject</button>
-      </div>`;
-  });
-};
-
-window.updateAppointment=async(id,status)=>{
-  await updateDoc(doc(db,"appointments",id),{status});
-  loadPendingAppointments();
+window.approve=async(id)=>{
+  await updateDoc(doc(db,"users",id),{status:"active"});
+  loadDoctors();
 };
 </script>
 
