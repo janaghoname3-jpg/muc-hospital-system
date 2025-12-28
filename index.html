@@ -80,11 +80,6 @@ input,select{
   <form id="loginForm">
     <input id="loginEmail" type="email" placeholder="Email" required>
     <input id="loginPassword" type="password" placeholder="Password" required>
-    <select id="loginRole">
-      <option value="patient">Patient</option>
-      <option value="doctor">Doctor</option>
-      <option value="admin">Admin</option>
-    </select>
     <button class="primary-btn" type="submit">Login</button>
   </form>
 </div>
@@ -123,7 +118,6 @@ import {
   collection,addDoc,getDocs,query,where,serverTimestamp,onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* Firebase */
 const firebaseConfig={
   apiKey:"AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY",
   authDomain:"muc-hospital.firebaseapp.com",
@@ -137,7 +131,6 @@ const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
-/* UI */
 const loginBox=document.getElementById("loginBox");
 const registerBox=document.getElementById("registerBox");
 const dashboard=document.getElementById("dashboard");
@@ -146,81 +139,58 @@ const dashContent=document.getElementById("dashContent");
 const navAuth=document.getElementById("navAuth");
 const navLogout=document.getElementById("navLogout");
 
-let loginApproved = false;
-
 window.showLogin=()=>{loginBox.classList.remove("hidden");registerBox.classList.add("hidden")}
 window.showRegister=()=>{registerBox.classList.remove("hidden");loginBox.classList.add("hidden")}
 
-/* ===== AUTH STATE (FIXED) ===== */
+/* ===== AUTH STATE ===== */
 onAuthStateChanged(auth, async user=>{
-  if(user){
-    if(!loginApproved) return;
-
-    const snap=await getDoc(doc(db,"users",user.uid));
-    if(!snap.exists()){
-      await signOut(auth);
-      showLogin();
-      return;
-    }
-
-    navAuth.classList.add("hidden");
-    navLogout.classList.remove("hidden");
-    openDashboard(snap.data().role);
-  }else{
-    loginApproved=false;
+  if(!user){
     navAuth.classList.remove("hidden");
     navLogout.classList.add("hidden");
     dashboard.classList.add("hidden");
     showLogin();
+    return;
   }
+
+  const snap=await getDoc(doc(db,"users",user.uid));
+  if(!snap.exists()){
+    await signOut(auth);
+    showLogin();
+    return;
+  }
+
+  const data=snap.data();
+
+  if(data.role==="doctor" && data.status!=="active"){
+    alert("Doctor pending admin approval");
+    await signOut(auth);
+    showLogin();
+    return;
+  }
+
+  navAuth.classList.add("hidden");
+  navLogout.classList.remove("hidden");
+  openDashboard(data.role);
 });
 
 /* ===== REGISTER ===== */
 registerForm.onsubmit=async e=>{
   e.preventDefault();
-  try{
-    const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
-    await setDoc(doc(db,"users",u.user.uid),{
-      name:regName.value,
-      email:regEmail.value,
-      role:regRole.value,
-      status:regRole.value==="doctor"?"pending":"active"
-    });
-    alert("Account created");
-    showLogin();
-  }catch(error){
-    if(error.code==="auth/email-already-in-use")
-      alert("Email already registered");
-    else alert(error.message);
-  }
+  const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
+  await setDoc(doc(db,"users",u.user.uid),{
+    name:regName.value,
+    email:regEmail.value,
+    role:regRole.value,
+    status:regRole.value==="doctor"?"pending":"active"
+  });
+  alert("Account created");
+  showLogin();
 };
 
-/* ===== LOGIN (FIXED) ===== */
+/* ===== LOGIN ===== */
 loginForm.onsubmit=async e=>{
   e.preventDefault();
-
-  const u=await signInWithEmailAndPassword(
-    auth,loginEmail.value,loginPassword.value
-  );
-
-  const snap=await getDoc(doc(db,"users",u.user.uid));
-  const d=snap.data();
-
-  if(d.role!==loginRole.value){
-    loginApproved=false;
-    await signOut(auth);
-    alert("Wrong role");
-    return;
-  }
-
-  if(d.role==="doctor" && d.status!=="active"){
-    loginApproved=false;
-    await signOut(auth);
-    alert("Doctor pending approval");
-    return;
-  }
-
-  loginApproved=true;
+  await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
 };
 
 /* ===== LOGOUT ===== */
@@ -327,7 +297,7 @@ window.approveDoctor=async(uid)=>{
 };
 
 window.loadPendingAppointments=async()=>{
-  adminAppointments.innerHTML="<h3>Pending Appointments</h3>";
+  adminAppointments.innerHTML="";
   const q=query(collection(db,"appointments"),
     where("status","==","pending"));
   const s=await getDocs(q);
