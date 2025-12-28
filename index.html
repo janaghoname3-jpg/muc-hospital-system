@@ -94,4 +94,240 @@ input,select{
 <div id="registerBox" class="card hidden">
   <h3>Create Account</h3>
   <form id="registerForm">
-    <input id="reg
+    <input id="regName" placeholder="Full Name" required>
+    <input id="regEmail" type="email" placeholder="Email" required>
+    <input id="regPassword" type="password" placeholder="Password" required>
+    <select id="regRole">
+      <option value="patient">Patient</option>
+      <option value="doctor">Doctor</option>
+    </select>
+    <button class="primary-btn" type="submit">Sign Up</button>
+  </form>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="dashboard hidden">
+  <h2 id="dashTitle"></h2>
+  <div id="dashContent"></div>
+</div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getAuth,createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,signOut,onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getFirestore,doc,setDoc,getDoc,updateDoc,
+  collection,addDoc,getDocs,query,where,serverTimestamp,onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* Firebase */
+const firebaseConfig={
+  apiKey:"AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY",
+  authDomain:"muc-hospital.firebaseapp.com",
+  projectId:"muc-hospital",
+  storageBucket:"muc-hospital.firebasestorage.app",
+  messagingSenderId:"613180719346",
+  appId:"1:613180719346:web:33ff3d5d633c8d7b49106b"
+};
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+/* UI */
+const loginBox=document.getElementById("loginBox");
+const registerBox=document.getElementById("registerBox");
+const dashboard=document.getElementById("dashboard");
+const dashTitle=document.getElementById("dashTitle");
+const dashContent=document.getElementById("dashContent");
+const navAuth=document.getElementById("navAuth");
+const navLogout=document.getElementById("navLogout");
+
+window.showLogin=()=>{loginBox.classList.remove("hidden");registerBox.classList.add("hidden")}
+window.showRegister=()=>{registerBox.classList.remove("hidden");loginBox.classList.add("hidden")}
+
+/* ===== AUTH STATE ===== */
+onAuthStateChanged(auth, async user=>{
+  if(!user){
+    navAuth.classList.remove("hidden");
+    navLogout.classList.add("hidden");
+    dashboard.classList.add("hidden");
+    showLogin();
+    return;
+  }
+
+  const snap=await getDoc(doc(db,"users",user.uid));
+  if(!snap.exists()){
+    await signOut(auth);
+    showLogin();
+    return;
+  }
+
+  const data=snap.data();
+
+  if(data.role==="doctor" && data.status!=="active"){
+    alert("Doctor pending admin approval");
+    await signOut(auth);
+    showLogin();
+    return;
+  }
+
+  navAuth.classList.add("hidden");
+  navLogout.classList.remove("hidden");
+  openDashboard(data.role);
+});
+
+/* ===== REGISTER ===== */
+registerForm.onsubmit=async e=>{
+  e.preventDefault();
+  const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
+  await setDoc(doc(db,"users",u.user.uid),{
+    name:regName.value,
+    email:regEmail.value,
+    role:regRole.value,
+    status:regRole.value==="doctor"?"pending":"active"
+  });
+  alert("Account created");
+  showLogin();
+};
+
+/* ===== LOGIN ===== */
+loginForm.onsubmit=async e=>{
+  e.preventDefault();
+  await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
+};
+
+/* ===== LOGOUT ===== */
+window.logout=async()=>{await signOut(auth)}
+
+/* ===== DASHBOARD ===== */
+function openDashboard(role){
+  loginBox.classList.add("hidden");
+  registerBox.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  dashTitle.innerText=role.toUpperCase()+" DASHBOARD";
+
+  if(role==="patient"){
+    dashContent.innerHTML=`
+      <div class="grid">
+        <div class="box" onclick="showBooking()">Book Appointment</div>
+        <div class="box" onclick="loadMyAppointments()">My Appointments</div>
+      </div>
+      <div id="bookingArea"></div>
+      <div id="appointmentsArea"></div>`;
+  }
+
+  if(role==="admin"){
+    dashContent.innerHTML=`
+      <div class="grid">
+        <div class="box" onclick="loadPendingDoctors()">Approve Doctors</div>
+        <div class="box" onclick="loadPendingAppointments()">Approve Appointments</div>
+      </div>
+      <div id="adminDoctors"></div>
+      <div id="adminAppointments"></div>`;
+    
+    // تحميل تلقائي
+    loadPendingDoctors();
+  }
+}
+
+/* ===== BOOKING ===== */
+window.showBooking=async()=>{
+  bookingArea.innerHTML=`
+    <h3>Book Appointment</h3>
+    <select id="doctorSelect"></select>
+    <input type="date" id="date">
+    <input type="time" id="time">
+    <button class="primary-btn" onclick="confirmBooking()">Confirm</button>`;
+  loadDoctors();
+};
+
+async function loadDoctors(){
+  const q=query(collection(db,"users"),
+    where("role","==","doctor"),
+    where("status","==","active"));
+  const s=await getDocs(q);
+  doctorSelect.innerHTML="";
+  s.forEach(d=>{
+    doctorSelect.innerHTML+=`<option value="${d.id}">${d.data().name}</option>`;
+  });
+}
+
+window.confirmBooking=async()=>{
+  await addDoc(collection(db,"appointments"),{
+    patientId:auth.currentUser.uid,
+    doctorId:doctorSelect.value,
+    date:date.value,
+    time:time.value,
+    status:"pending",
+    createdAt:serverTimestamp()
+  });
+  alert("Appointment sent for admin approval");
+};
+
+/* ===== PATIENT ===== */
+window.loadMyAppointments=()=>{
+  const q=query(collection(db,"appointments"),
+    where("patientId","==",auth.currentUser.uid));
+  onSnapshot(q,s=>{
+    appointmentsArea.innerHTML="";
+    s.forEach(d=>{
+      const a=d.data();
+      appointmentsArea.innerHTML+=`
+        <div class="box">
+          ${a.date} - ${a.time}
+          <div class="badge ${a.status}">${a.status}</div>
+        </div>`;
+    });
+  });
+};
+
+/* ===== ADMIN ===== */
+window.loadPendingDoctors=async()=>{
+  adminDoctors.innerHTML="";
+  const q=query(collection(db,"users"),
+    where("role","==","doctor"),
+    where("status","==","pending"));
+  const s=await getDocs(q);
+  s.forEach(d=>{
+    adminDoctors.innerHTML+=`
+      <div class="box">
+        ${d.data().name}<br>${d.data().email}
+        <button onclick="approveDoctor('${d.id}')">Approve</button>
+      </div>`;
+  });
+};
+
+window.approveDoctor=async(uid)=>{
+  await updateDoc(doc(db,"users",uid),{status:"active"});
+  loadPendingDoctors();
+};
+
+window.loadPendingAppointments=async()=>{
+  adminAppointments.innerHTML="";
+  const q=query(collection(db,"appointments"),
+    where("status","==","pending"));
+  const s=await getDocs(q);
+  s.forEach(d=>{
+    const a=d.data();
+    adminAppointments.innerHTML+=`
+      <div class="box">
+        ${a.date} - ${a.time}
+        <button onclick="updateAppointment('${d.id}','approved')">Approve</button>
+        <button onclick="updateAppointment('${d.id}','rejected')">Reject</button>
+      </div>`;
+  });
+};
+
+window.updateAppointment=async(id,status)=>{
+  await updateDoc(doc(db,"appointments",id),{status});
+  loadPendingAppointments();
+};
+</script>
+
+</body>
+</html>
