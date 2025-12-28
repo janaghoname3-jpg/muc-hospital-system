@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -116,12 +115,15 @@ input,select{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-  getAuth,createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,signOut,onAuthStateChanged
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
-  getFirestore,doc,setDoc,getDoc,updateDoc,
-  collection,addDoc,getDocs,query,where,serverTimestamp,onSnapshot
+  getFirestore, doc, setDoc, getDoc, updateDoc,
+  collection, addDoc, getDocs, query, where, serverTimestamp, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* Firebase */
@@ -150,20 +152,19 @@ const navLogout=document.getElementById("navLogout");
 window.showLogin=()=>{loginBox.classList.remove("hidden");registerBox.classList.add("hidden")}
 window.showRegister=()=>{registerBox.classList.remove("hidden");loginBox.classList.add("hidden")}
 
-/* ================= FIXED AUTH STATE ================= */
+/* ===== AUTH STATE ===== */
 onAuthStateChanged(auth, async user=>{
   if(user){
-    const snap = await getDoc(doc(db,"users",user.uid));
+    const snap=await getDoc(doc(db,"users",user.uid));
     if(!snap.exists()){
       await signOut(auth);
       showLogin();
       return;
     }
 
-    const data = snap.data();
+    const data=snap.data();
 
-    // 🔒 منع دخول الدكتور قبل موافقة الأدمن
-    if(data.role === "doctor" && data.status !== "active"){
+    if(data.role==="doctor" && data.status!=="active"){
       alert("Your account is pending admin approval");
       await signOut(auth);
       showLogin();
@@ -181,37 +182,56 @@ onAuthStateChanged(auth, async user=>{
   }
 });
 
-/* Register */
-registerForm.onsubmit=async e=>{
+/* ===== REGISTER (FIXED) ===== */
+registerForm.onsubmit = async e => {
   e.preventDefault();
-  const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
-  await setDoc(doc(db,"users",u.user.uid),{
-    name:regName.value,
-    email:regEmail.value,
-    role:regRole.value,
-    status: regRole.value==="doctor"?"pending":"active"
-  });
-  alert("Account created");
-};
+  try{
+    const u = await createUserWithEmailAndPassword(
+      auth,
+      regEmail.value,
+      regPassword.value
+    );
 
-/* Login */
-loginForm.onsubmit=async e=>{
-  e.preventDefault();
-  const u=await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
-  const snap=await getDoc(doc(db,"users",u.user.uid));
-  const d=snap.data();
+    await setDoc(doc(db,"users",u.user.uid),{
+      name: regName.value,
+      email: regEmail.value,
+      role: regRole.value,
+      status: regRole.value==="doctor" ? "pending" : "active"
+    });
 
-  if(d.role!==loginRole.value) return alert("Wrong role");
-  if(d.role==="doctor" && d.status!=="active"){
-    await signOut(auth);
-    return alert("Doctor pending approval");
+    alert("Account created successfully");
+    showLogin();
+  }catch(error){
+    if(error.code==="auth/email-already-in-use"){
+      alert("This email is already registered. Please use another email.");
+    }else{
+      alert("Registration error: "+error.message);
+    }
   }
 };
 
-/* Logout */
+/* ===== LOGIN ===== */
+loginForm.onsubmit = async e => {
+  e.preventDefault();
+  const u = await signInWithEmailAndPassword(
+    auth,
+    loginEmail.value,
+    loginPassword.value
+  );
+
+  const snap = await getDoc(doc(db,"users",u.user.uid));
+  const d = snap.data();
+
+  if(d.role!==loginRole.value){
+    await signOut(auth);
+    alert("Wrong role");
+  }
+};
+
+/* ===== LOGOUT ===== */
 window.logout=async()=>{await signOut(auth)}
 
-/* Dashboard */
+/* ===== DASHBOARD ===== */
 function openDashboard(role){
   loginBox.classList.add("hidden");
   registerBox.classList.add("hidden");
@@ -228,14 +248,6 @@ function openDashboard(role){
       <div id="appointmentsArea"></div>`;
   }
 
-  if(role==="doctor"){
-    dashContent.innerHTML=`
-      <div class="grid">
-        <div class="box" onclick="loadDoctorAppointments()">Pending Appointments</div>
-      </div>
-      <div id="doctorAppointments"></div>`;
-  }
-
   if(role==="admin"){
     dashContent.innerHTML=`
       <div class="grid">
@@ -245,7 +257,7 @@ function openDashboard(role){
   }
 }
 
-/* Booking */
+/* ===== BOOKING ===== */
 window.showBooking=()=>{
   bookingArea.innerHTML=`
     <h3>Book Appointment</h3>
@@ -265,7 +277,7 @@ window.confirmBooking=async()=>{
   alert("Appointment booked");
 };
 
-/* Patient */
+/* ===== PATIENT ===== */
 window.loadMyAppointments=()=>{
   const q=query(collection(db,"appointments"),
     where("patientId","==",auth.currentUser.uid));
@@ -282,29 +294,7 @@ window.loadMyAppointments=()=>{
   });
 };
 
-/* Doctor */
-window.loadDoctorAppointments=async()=>{
-  doctorAppointments.innerHTML="";
-  const q=query(collection(db,"appointments"),
-    where("status","==","pending"));
-  const s=await getDocs(q);
-  s.forEach(d=>{
-    const a=d.data();
-    doctorAppointments.innerHTML+=`
-      <div class="box">
-        ${a.date} - ${a.time}<br>
-        <button onclick="updateAppointment('${d.id}','approved')">Approve</button>
-        <button onclick="updateAppointment('${d.id}','rejected')">Reject</button>
-      </div>`;
-  });
-};
-
-window.updateAppointment=async(id,status)=>{
-  await updateDoc(doc(db,"appointments",id),{status});
-  loadDoctorAppointments();
-};
-
-/* Admin */
+/* ===== ADMIN ===== */
 window.loadPendingDoctors=async()=>{
   adminDoctors.innerHTML="";
   const q=query(collection(db,"users"),
