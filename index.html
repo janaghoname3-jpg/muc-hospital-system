@@ -8,7 +8,6 @@
 <style>
 :root{
   --primary:#480D08;
-  --secondary:#7a1f18;
   --success:#2ecc71;
   --warning:#f1c40f;
   --danger:#e74c3c;
@@ -17,10 +16,9 @@
 body{
   margin:0;min-height:100vh;
   background:linear-gradient(135deg,#3a0705,#6b1a14);
-  display:flex;flex-direction:column
 }
 header{
-  background:rgba(0,0,0,.25);
+  background:rgba(0,0,0,.3);
   padding:18px 40px;color:white;
   display:flex;justify-content:space-between;align-items:center
 }
@@ -29,18 +27,17 @@ header button{
   color:white;padding:8px 18px;border-radius:20px;cursor:pointer
 }
 .main{
-  flex:1;
+  padding:40px;
   display:flex;
   justify-content:center;
-  align-items:flex-start;
-  padding:40px;
 }
 .card,.dashboard{
   background:white;border-radius:20px;
-  padding:30px;width:380px;
+  padding:30px;
+  width:100%;
+  max-width:900px;
   box-shadow:0 25px 50px rgba(0,0,0,.3)
 }
-.dashboard{width:100%;max-width:900px}
 .hidden{display:none}
 input,select{
   width:100%;padding:12px;margin-bottom:12px;
@@ -48,17 +45,23 @@ input,select{
 }
 .primary-btn{
   width:100%;padding:12px;border:none;
-  border-radius:25px;background:linear-gradient(135deg,#480D08,#7a1f18);
+  border-radius:25px;
+  background:linear-gradient(135deg,#480D08,#7a1f18);
   color:white;font-size:16px;cursor:pointer
 }
 .grid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:15px;margin-bottom:20px
 }
 .box{
-  background:#f8f6f6;padding:20px;border-radius:15px;text-align:center
+  background:#f8f6f6;padding:20px;
+  border-radius:15px;text-align:center
 }
-.badge{padding:5px 12px;border-radius:15px;color:white;font-size:13px}
+.badge{
+  padding:5px 12px;border-radius:15px;
+  color:white;font-size:13px
+}
 .pending{background:var(--warning);color:black}
 .approved{background:var(--success)}
 .rejected{background:var(--danger)}
@@ -86,7 +89,7 @@ input,select{
   <form id="loginForm">
     <input id="loginEmail" type="email" placeholder="Email" required>
     <input id="loginPassword" type="password" placeholder="Password" required>
-    <button class="primary-btn" type="submit">Login</button>
+    <button class="primary-btn">Login</button>
   </form>
 </div>
 
@@ -101,7 +104,7 @@ input,select{
       <option value="patient">Patient</option>
       <option value="doctor">Doctor</option>
     </select>
-    <button class="primary-btn" type="submit">Sign Up</button>
+    <button class="primary-btn">Sign Up</button>
   </form>
 </div>
 
@@ -121,24 +124,18 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,doc,setDoc,getDoc,updateDoc,
-  collection,addDoc,getDocs,query,where,serverTimestamp,onSnapshot
+  collection,addDoc,getDocs,query,where,serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* Firebase */
 const firebaseConfig={
   apiKey:"AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY",
   authDomain:"muc-hospital.firebaseapp.com",
   projectId:"muc-hospital",
-  storageBucket:"muc-hospital.firebasestorage.app",
-  messagingSenderId:"613180719346",
-  appId:"1:613180719346:web:33ff3d5d633c8d7b49106b"
 };
-
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
-/* UI */
 const loginBox=document.getElementById("loginBox");
 const registerBox=document.getElementById("registerBox");
 const dashboard=document.getElementById("dashboard");
@@ -211,92 +208,36 @@ function openDashboard(role){
   dashboard.classList.remove("hidden");
   dashTitle.innerText=role.toUpperCase()+" DASHBOARD";
 
-  if(role==="patient"){
-    dashContent.innerHTML=`
-      <div class="grid">
-        <div class="box" onclick="showBooking()">Book Appointment</div>
-        <div class="box" onclick="loadMyAppointments()">My Appointments</div>
-      </div>
-      <div id="bookingArea"></div>
-      <div id="appointmentsArea"></div>`;
-  }
-
   if(role==="admin"){
     dashContent.innerHTML=`
       <div class="grid">
-        <div class="box" onclick="loadPendingDoctors()">Approve Doctors</div>
-        <div class="box" onclick="loadPendingAppointments()">Approve Appointments</div>
+        <div class="box" onclick="loadPendingDoctors()">Pending Doctors</div>
+        <div class="box" onclick="loadPendingAppointments()">Pending Appointments</div>
       </div>
       <div id="adminDoctors"></div>
-      <div id="adminAppointments"></div>`;
-    
-    // تحميل تلقائي
+      <div id="adminAppointments"></div>
+    `;
     loadPendingDoctors();
+  }
+
+  if(role==="patient"){
+    dashContent.innerHTML=`<p>Patient dashboard ready</p>`;
   }
 }
 
-/* ===== BOOKING ===== */
-window.showBooking=async()=>{
-  bookingArea.innerHTML=`
-    <h3>Book Appointment</h3>
-    <select id="doctorSelect"></select>
-    <input type="date" id="date">
-    <input type="time" id="time">
-    <button class="primary-btn" onclick="confirmBooking()">Confirm</button>`;
-  loadDoctors();
-};
-
-async function loadDoctors(){
-  const q=query(collection(db,"users"),
-    where("role","==","doctor"),
-    where("status","==","active"));
-  const s=await getDocs(q);
-  doctorSelect.innerHTML="";
-  s.forEach(d=>{
-    doctorSelect.innerHTML+=`<option value="${d.id}">${d.data().name}</option>`;
-  });
-}
-
-window.confirmBooking=async()=>{
-  await addDoc(collection(db,"appointments"),{
-    patientId:auth.currentUser.uid,
-    doctorId:doctorSelect.value,
-    date:date.value,
-    time:time.value,
-    status:"pending",
-    createdAt:serverTimestamp()
-  });
-  alert("Appointment sent for admin approval");
-};
-
-/* ===== PATIENT ===== */
-window.loadMyAppointments=()=>{
-  const q=query(collection(db,"appointments"),
-    where("patientId","==",auth.currentUser.uid));
-  onSnapshot(q,s=>{
-    appointmentsArea.innerHTML="";
-    s.forEach(d=>{
-      const a=d.data();
-      appointmentsArea.innerHTML+=`
-        <div class="box">
-          ${a.date} - ${a.time}
-          <div class="badge ${a.status}">${a.status}</div>
-        </div>`;
-    });
-  });
-};
-
 /* ===== ADMIN ===== */
 window.loadPendingDoctors=async()=>{
-  adminDoctors.innerHTML="";
+  const adminDoctors=document.getElementById("adminDoctors");
+  adminDoctors.innerHTML="<h3>Doctors Waiting Approval</h3>";
   const q=query(collection(db,"users"),
     where("role","==","doctor"),
     where("status","==","pending"));
   const s=await getDocs(q);
+  if(s.empty) adminDoctors.innerHTML+="<p>No pending doctors</p>";
   s.forEach(d=>{
     adminDoctors.innerHTML+=`
       <div class="box">
-        ${d.data().name}<br>${d.data().email}
+        ${d.data().name} (${d.data().email})
         <button onclick="approveDoctor('${d.id}')">Approve</button>
       </div>`;
   });
@@ -308,10 +249,12 @@ window.approveDoctor=async(uid)=>{
 };
 
 window.loadPendingAppointments=async()=>{
-  adminAppointments.innerHTML="";
+  const adminAppointments=document.getElementById("adminAppointments");
+  adminAppointments.innerHTML="<h3>Pending Appointments</h3>";
   const q=query(collection(db,"appointments"),
     where("status","==","pending"));
   const s=await getDocs(q);
+  if(s.empty) adminAppointments.innerHTML+="<p>No pending appointments</p>";
   s.forEach(d=>{
     const a=d.data();
     adminAppointments.innerHTML+=`
