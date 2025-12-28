@@ -73,6 +73,20 @@ button{
   <button onclick="logout()">Logout</button>
 </div>
 
+<!-- PATIENT -->
+<div id="patientBox" class="card hidden">
+  <h3>Patient Dashboard</h3>
+  <p>Welcome Patient 👤</p>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- DOCTOR -->
+<div id="doctorBox" class="card hidden">
+  <h3>Doctor Dashboard</h3>
+  <p>Welcome Doctor 👨‍⚕️</p>
+  <button onclick="logout()">Logout</button>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
@@ -104,11 +118,15 @@ const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
+/* UI elements */
 const loginBox=document.getElementById("loginBox");
 const registerBox=document.getElementById("registerBox");
 const adminBox=document.getElementById("adminBox");
+const patientBox=document.getElementById("patientBox");
+const doctorBox=document.getElementById("doctorBox");
 const doctorsDiv=document.getElementById("doctors");
 
+/* Navigation */
 window.showRegister=()=>{
   loginBox.classList.add("hidden");
   registerBox.classList.remove("hidden");
@@ -118,6 +136,7 @@ window.showLogin=()=>{
   loginBox.classList.remove("hidden");
 };
 
+/* Register */
 window.register=async()=>{
   const u=await createUserWithEmailAndPassword(
     auth,
@@ -134,6 +153,7 @@ window.register=async()=>{
   showLogin();
 };
 
+/* Login */
 window.login=async()=>{
   await signInWithEmailAndPassword(
     auth,
@@ -142,32 +162,49 @@ window.login=async()=>{
   );
 };
 
+/* Logout */
 window.logout=async()=>{
   await signOut(auth);
 };
 
+/* AUTH STATE (المهم جدًا) */
 onAuthStateChanged(auth, async user=>{
+  // reset
+  loginBox.classList.add("hidden");
+  registerBox.classList.add("hidden");
+  adminBox.classList.add("hidden");
+  patientBox.classList.add("hidden");
+  doctorBox.classList.add("hidden");
+
   if(!user){
     loginBox.classList.remove("hidden");
-    registerBox.classList.add("hidden");
-    adminBox.classList.add("hidden");
     return;
   }
 
   const snap=await getDoc(doc(db,"users",user.uid));
   const data=snap.data();
 
-  if(data.role!=="admin"){
-    alert("Not admin");
-    await signOut(auth);
-    return;
+  if(data.role==="admin"){
+    adminBox.classList.remove("hidden");
+    loadDoctors();
   }
 
-  loginBox.classList.add("hidden");
-  adminBox.classList.remove("hidden");
-  loadDoctors();
+  if(data.role==="patient"){
+    patientBox.classList.remove("hidden");
+  }
+
+  if(data.role==="doctor"){
+    if(data.status!=="active"){
+      alert("Doctor pending approval");
+      await signOut(auth);
+      loginBox.classList.remove("hidden");
+      return;
+    }
+    doctorBox.classList.remove("hidden");
+  }
 });
 
+/* Admin approve doctors */
 async function loadDoctors(){
   doctorsDiv.innerHTML="";
   const q=query(
