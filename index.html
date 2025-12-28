@@ -146,25 +146,28 @@ const dashContent=document.getElementById("dashContent");
 const navAuth=document.getElementById("navAuth");
 const navLogout=document.getElementById("navLogout");
 
+let loginApproved = false;
+
 window.showLogin=()=>{loginBox.classList.remove("hidden");registerBox.classList.add("hidden")}
 window.showRegister=()=>{registerBox.classList.remove("hidden");loginBox.classList.add("hidden")}
 
-/* ===== AUTH STATE ===== */
+/* ===== AUTH STATE (FIXED) ===== */
 onAuthStateChanged(auth, async user=>{
   if(user){
+    if(!loginApproved) return;
+
     const snap=await getDoc(doc(db,"users",user.uid));
     if(!snap.exists()){
-      await signOut(auth); showLogin(); return;
+      await signOut(auth);
+      showLogin();
+      return;
     }
-    const data=snap.data();
-    if(data.role==="doctor" && data.status!=="active"){
-      alert("Your account is pending admin approval");
-      await signOut(auth); showLogin(); return;
-    }
+
     navAuth.classList.add("hidden");
     navLogout.classList.remove("hidden");
-    openDashboard(data.role);
+    openDashboard(snap.data().role);
   }else{
+    loginApproved=false;
     navAuth.classList.remove("hidden");
     navLogout.classList.add("hidden");
     dashboard.classList.add("hidden");
@@ -173,7 +176,7 @@ onAuthStateChanged(auth, async user=>{
 });
 
 /* ===== REGISTER ===== */
-registerForm.onsubmit = async e=>{
+registerForm.onsubmit=async e=>{
   e.preventDefault();
   try{
     const u=await createUserWithEmailAndPassword(auth,regEmail.value,regPassword.value);
@@ -192,15 +195,32 @@ registerForm.onsubmit = async e=>{
   }
 };
 
-/* ===== LOGIN ===== */
-loginForm.onsubmit = async e=>{
+/* ===== LOGIN (FIXED) ===== */
+loginForm.onsubmit=async e=>{
   e.preventDefault();
-  const u=await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
+
+  const u=await signInWithEmailAndPassword(
+    auth,loginEmail.value,loginPassword.value
+  );
+
   const snap=await getDoc(doc(db,"users",u.user.uid));
-  if(snap.data().role!==loginRole.value){
+  const d=snap.data();
+
+  if(d.role!==loginRole.value){
+    loginApproved=false;
     await signOut(auth);
     alert("Wrong role");
+    return;
   }
+
+  if(d.role==="doctor" && d.status!=="active"){
+    loginApproved=false;
+    await signOut(auth);
+    alert("Doctor pending approval");
+    return;
+  }
+
+  loginApproved=true;
 };
 
 /* ===== LOGOUT ===== */
@@ -235,7 +255,7 @@ function openDashboard(role){
 }
 
 /* ===== BOOKING ===== */
-window.showBooking = async ()=>{
+window.showBooking=async()=>{
   bookingArea.innerHTML=`
     <h3>Book Appointment</h3>
     <select id="doctorSelect"></select>
@@ -256,7 +276,7 @@ async function loadDoctors(){
   });
 }
 
-window.confirmBooking = async ()=>{
+window.confirmBooking=async()=>{
   await addDoc(collection(db,"appointments"),{
     patientId:auth.currentUser.uid,
     doctorId:doctorSelect.value,
