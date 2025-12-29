@@ -1,232 +1,252 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>MUC Hospital</title>
+<title>MUC Hospital - Admin System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
 <style>
-body{
-  margin:0;
-  min-height:100vh;
-  background:#5a0f0b;
-  font-family:Arial;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-.card{
-  background:#fff;
-  padding:30px;
-  width:350px;
-  border-radius:15px;
-}
-.hidden{display:none}
-input,select,button{
-  width:100%;
-  padding:10px;
-  margin:8px 0;
-}
-button{
-  background:#5a0f0b;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-.box{
-  background:#f3f3f3;
-  padding:15px;
-  margin:10px 0;
-}
+/* Styles */
+:root { --primary: #800000; --bg: #f0f2f5; --text: #333; --success: #28a745; --danger: #dc3545; --warning: #ffc107; }
+body { font-family: 'Tajawal', sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+button { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-weight: bold; }
+.btn-main { background: var(--primary); color: white; width: 100%; margin-top: 10px; padding: 12px; }
+.btn-success { background: var(--success); color: white; }
+.btn-nav { background: white; color: var(--primary); border: 1px solid var(--primary); margin: 5px; }
+.btn-logout { background: white; color: var(--danger); border: 1px solid var(--danger); }
+.container { max-width: 900px; margin: 30px auto; padding: 0 15px; }
+.card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+.hidden { display: none !important; }
+input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+.list-item { background: #fff; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.badge { padding: 4px 8px; border-radius: 12px; color: white; font-size: 0.8rem; }
 </style>
 </head>
-
 <body>
 
-<!-- LOGIN -->
-<div id="loginBox" class="card">
-  <h3>Login</h3>
-  <input id="loginEmail" placeholder="Email">
-  <input id="loginPassword" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <p><a href="#" onclick="showRegister()">Create account</a></p>
-</div>
+<header>
+  <h2>🏥 MUC Admin System</h2>
+  <div id="navArea"></div>
+</header>
 
-<!-- REGISTER -->
-<div id="registerBox" class="card hidden">
-  <h3>Register</h3>
-  <input id="regName" placeholder="Name">
-  <input id="regEmail" placeholder="Email">
-  <input id="regPassword" type="password" placeholder="Password">
-  <select id="regRole">
-    <option value="patient">Patient</option>
-    <option value="doctor">Doctor</option>
-  </select>
-  <button onclick="register()">Register</button>
-  <p><a href="#" onclick="showLogin()">Back to login</a></p>
-</div>
+<div class="container">
+  <div id="authScreen" class="card" style="max-width: 400px; margin: 50px auto;">
+    <h3 id="formTitle" style="text-align:center; color:var(--primary)">تسجيل الدخول</h3>
+    <input type="text" id="fullName" placeholder="الاسم الكامل" class="hidden">
+    <input type="email" id="email" placeholder="البريد الإلكتروني">
+    <input type="password" id="password" placeholder="كلمة المرور">
+    
+    <div id="regOptions" class="hidden">
+      <label>أريد التسجيل كـ:</label>
+      <select id="role">
+        <option value="patient">مريض (Patient)</option>
+        <option value="doctor">دكتور (Doctor)</option>
+        <option value="admin">مدير النظام (Admin)</option>
+      </select>
+      <p style="font-size:0.8rem; color:#d9534f">* ملاحظة: حساب الدكتور يتطلب تفعيل من الأدمن.</p>
+    </div>
 
-<!-- ADMIN -->
-<div id="adminBox" class="card hidden">
-  <h3>Admin Dashboard</h3>
-  <div id="doctors"></div>
-  <button onclick="logout()">Logout</button>
-</div>
+    <button onclick="authHandler()" class="btn-main">تنفيذ</button>
+    <p style="text-align:center; cursor:pointer; margin-top:15px; color:#555" onclick="toggleForm()" id="toggleText">مستخدم جديد؟ إنشاء حساب</p>
+  </div>
 
-<!-- PATIENT -->
-<div id="patientBox" class="card hidden">
-  <h3>Patient Dashboard</h3>
-  <p>Welcome Patient 👤</p>
-  <button onclick="logout()">Logout</button>
-</div>
-
-<!-- DOCTOR -->
-<div id="doctorBox" class="card hidden">
-  <h3>Doctor Dashboard</h3>
-  <p>Welcome Doctor 👨‍⚕️</p>
-  <button onclick="logout()">Logout</button>
+  <div id="dashboard" class="hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3 id="welcomeText" style="color:var(--primary); margin:0"></h3>
+      <span id="roleBadge" class="badge" style="background:#555"></span>
+    </div>
+    <div id="menuTabs" style="margin-bottom:20px;"></div>
+    <div id="mainContent"></div>
+  </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  collection,
-  getDocs,
-  query,
-  where
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig={
-  apiKey:"AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY",
-  authDomain:"muc-hospital.firebaseapp.com",
-  projectId:"muc-hospital"
-};
+const app = initializeApp({ apiKey: "AIzaSyCGG8qc9y4q8P9p498pWxFNDg4wz_uzjnY", authDomain: "muc-hospital.firebaseapp.com", projectId: "muc-hospital" });
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
+let userMode = true; let currentUser = null;
+const authScreen = document.getElementById('authScreen');
+const dashboard = document.getElementById('dashboard');
+const mainContent = document.getElementById('mainContent');
 
-/* UI elements */
-const loginBox=document.getElementById("loginBox");
-const registerBox=document.getElementById("registerBox");
-const adminBox=document.getElementById("adminBox");
-const patientBox=document.getElementById("patientBox");
-const doctorBox=document.getElementById("doctorBox");
-const doctorsDiv=document.getElementById("doctors");
-
-/* Navigation */
-window.showRegister=()=>{
-  loginBox.classList.add("hidden");
-  registerBox.classList.remove("hidden");
-};
-window.showLogin=()=>{
-  registerBox.classList.add("hidden");
-  loginBox.classList.remove("hidden");
-};
-
-/* Register */
-window.register=async()=>{
-  const u=await createUserWithEmailAndPassword(
-    auth,
-    regEmail.value,
-    regPassword.value
-  );
-  await setDoc(doc(db,"users",u.user.uid),{
-    name:regName.value,
-    email:regEmail.value,
-    role:regRole.value,
-    status: regRole.value==="doctor" ? "pending" : "active"
-  });
-  alert("Account created");
-  showLogin();
-};
-
-/* Login */
-window.login=async()=>{
-  await signInWithEmailAndPassword(
-    auth,
-    loginEmail.value,
-    loginPassword.value
-  );
-};
-
-/* Logout */
-window.logout=async()=>{
-  await signOut(auth);
-};
-
-/* AUTH STATE (المهم جدًا) */
-onAuthStateChanged(auth, async user=>{
-  // reset
-  loginBox.classList.add("hidden");
-  registerBox.classList.add("hidden");
-  adminBox.classList.add("hidden");
-  patientBox.classList.add("hidden");
-  doctorBox.classList.add("hidden");
-
-  if(!user){
-    loginBox.classList.remove("hidden");
-    return;
-  }
-
-  const snap=await getDoc(doc(db,"users",user.uid));
-  const data=snap.data();
-
-  if(data.role==="admin"){
-    adminBox.classList.remove("hidden");
-    loadDoctors();
-  }
-
-  if(data.role==="patient"){
-    patientBox.classList.remove("hidden");
-  }
-
-  if(data.role==="doctor"){
-    if(data.status!=="active"){
-      alert("Doctor pending approval");
-      await signOut(auth);
-      loginBox.classList.remove("hidden");
-      return;
+// 1. AUTH
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      currentUser = { uid: user.uid, ...snap.data() };
+      
+      // Check Pending Doctor
+      if (currentUser.role === 'doctor' && currentUser.status === 'pending') {
+        alert("⛔ عذراً! حسابك بانتظار موافقة الأدمن.");
+        await signOut(auth);
+        return;
+      }
+      openDashboard();
     }
-    doctorBox.classList.remove("hidden");
-  }
+  } else { currentUser = null; openLogin(); }
 });
 
-/* Admin approve doctors */
-async function loadDoctors(){
-  doctorsDiv.innerHTML="";
-  const q=query(
-    collection(db,"users"),
-    where("role","==","doctor"),
-    where("status","==","pending")
-  );
-  const s=await getDocs(q);
-  s.forEach(d=>{
-    doctorsDiv.innerHTML+=`
-      <div class="box">
-        ${d.data().name}<br>
-        <button onclick="approve('${d.id}')">Approve</button>
-      </div>`;
-  });
+window.toggleForm = () => {
+  userMode = !userMode;
+  document.getElementById('formTitle').innerText = userMode ? "تسجيل الدخول" : "إنشاء حساب جديد";
+  document.getElementById('toggleText').innerText = userMode ? "مستخدم جديد؟ إنشاء حساب" : "لدي حساب بالفعل";
+  document.getElementById('fullName').classList.toggle('hidden', userMode);
+  document.getElementById('regOptions').classList.toggle('hidden', userMode);
+};
+
+window.authHandler = async () => {
+  const email = document.getElementById('email').value;
+  const pass = document.getElementById('password').value;
+  try {
+    if (userMode) {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } else {
+      const name = document.getElementById('fullName').value;
+      const role = document.getElementById('role').value;
+      if(!name) return alert("الاسم مطلوب");
+      
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      const status = (role === 'doctor') ? 'pending' : 'active'; // Logic: Doctor Pending
+
+      await setDoc(doc(db, "users", cred.user.uid), {
+        name, email, role, status, createdAt: serverTimestamp()
+      });
+      alert(role === 'doctor' ? "تم التسجيل! بانتظار تفعيل الأدمن." : "تم إنشاء الحساب بنجاح.");
+    }
+  } catch (e) { alert("Error: " + e.message); }
+};
+window.logout = async () => { await signOut(auth); location.reload(); };
+
+// 2. DASHBOARD
+function openLogin() { authScreen.classList.remove('hidden'); dashboard.classList.add('hidden'); document.getElementById('navArea').innerHTML = ''; }
+function openDashboard() {
+  authScreen.classList.add('hidden'); dashboard.classList.remove('hidden');
+  document.getElementById('navArea').innerHTML = `<button onclick="logout()" class="btn-logout">خروج</button>`;
+  document.getElementById('welcomeText').innerText = `أهلاً، ${currentUser.name}`;
+  document.getElementById('roleBadge').innerText = currentUser.role.toUpperCase();
+  
+  const menu = document.getElementById('menuTabs');
+  menu.innerHTML = "";
+
+  if (currentUser.role === 'admin') {
+    menu.innerHTML = `
+      <button class="btn-nav" onclick="adminDoctors()">👨‍⚕️ تفعيل الدكاترة</button>
+      <button class="btn-nav" onclick="adminAllAppts()">📅 كل المواعيد</button>
+    `;
+    adminDoctors();
+  } else if (currentUser.role === 'patient') {
+    menu.innerHTML = `
+      <button class="btn-nav" onclick="patBook()">➕ حجز موعد</button>
+      <button class="btn-nav" onclick="patList()">📂 مواعيدي</button>
+    `;
+    patBook();
+  } else if (currentUser.role === 'doctor') {
+    menu.innerHTML = `<button class="btn-nav">📅 جدولي</button>`;
+    docAppts();
+  }
 }
 
-window.approve=async(id)=>{
-  await updateDoc(doc(db,"users",id),{status:"active"});
-  loadDoctors();
+// === ADMIN LOGIC ===
+window.adminDoctors = async () => {
+  mainContent.innerHTML = "<h3>طلبات الدكاترة</h3>";
+  const q = query(collection(db, "users"), where("role", "==", "doctor"));
+  const snap = await getDocs(q);
+  
+  if(snap.empty) { mainContent.innerHTML += "<p>لا يوجد دكاترة.</p>"; return; }
+
+  snap.forEach(d => {
+    const u = d.data();
+    const isPending = u.status === 'pending';
+    const btn = isPending ? 
+      `<button class="btn-success" onclick="acceptDoc('${d.id}')">✅ قبول (Accept)</button>` : 
+      `<span style="color:green; font-weight:bold">مفعل Active</span>`;
+      
+    mainContent.innerHTML += `
+      <div class="list-item" style="border-right: 5px solid ${isPending?'orange':'green'}">
+        <div><b>${u.name}</b><br><small>${u.email}</small></div>
+        <div>${btn}</div>
+      </div>`;
+  });
+};
+
+window.acceptDoc = async (id) => {
+  if(confirm("تفعيل هذا الدكتور؟")) {
+    await updateDoc(doc(db, "users", id), { status: 'active' });
+    alert("تم التفعيل!"); adminDoctors();
+  }
+};
+
+window.adminAllAppts = async () => {
+  mainContent.innerHTML = "<h3>سجل كل المواعيد</h3>";
+  const snap = await getDocs(collection(db, "appointments"));
+  if(snap.empty) { mainContent.innerHTML += "<p>لا توجد مواعيد.</p>"; return; }
+  
+  snap.forEach(d => {
+    const a = d.data();
+    mainContent.innerHTML += `
+      <div class="list-item">
+        <div>
+           مريض: <b>${a.patientName}</b> ➡️ دكتور: <b>${a.doctorName}</b><br>
+           📅 ${a.date} الساعة ${a.time}
+        </div>
+        <span class="badge" style="background:${a.status==='pending'?'orange':'green'}">${a.status}</span>
+      </div>`;
+  });
+};
+
+// === PATIENT LOGIC ===
+window.patBook = async () => {
+  // Only show ACTIVE doctors
+  const q = query(collection(db, "users"), where("role", "==", "doctor"), where("status", "==", "active"));
+  const docs = await getDocs(q);
+  
+  let opts = `<option value="">-- اختر الدكتور --</option>`;
+  docs.forEach(d => opts += `<option value="${d.id}" data-name="${d.data().name}">${d.data().name}</option>`);
+
+  mainContent.innerHTML = `
+    <div class="card">
+      <h3>حجز موعد</h3>
+      <select id="selDoc">${opts}</select>
+      <input type="date" id="selDate">
+      <input type="time" id="selTime">
+      <button class="btn-main" onclick="confirmBook()">حجز الآن</button>
+    </div>`;
+};
+
+window.confirmBook = async () => {
+  const sel = document.getElementById('selDoc');
+  const dName = sel.options[sel.selectedIndex].getAttribute('data-name');
+  await addDoc(collection(db, "appointments"), {
+    patientId: currentUser.uid, patientName: currentUser.name,
+    doctorId: sel.value, doctorName: dName,
+    date: document.getElementById('selDate').value,
+    time: document.getElementById('selTime').value,
+    status: 'pending'
+  });
+  alert("تم الحجز! سيظهر في لوحة الأدمن."); patList();
+};
+
+window.patList = async () => {
+  const q = query(collection(db, "appointments"), where("patientId", "==", currentUser.uid));
+  const snap = await getDocs(q);
+  mainContent.innerHTML = "<h3>مواعيدي</h3>";
+  snap.forEach(d => mainContent.innerHTML += `<div class="list-item">📅 ${d.data().date} مع د. ${d.data().doctorName}</div>`);
+};
+
+// === DOCTOR LOGIC ===
+window.docAppts = async () => {
+  const q = query(collection(db, "appointments"), where("doctorId", "==", currentUser.uid));
+  const snap = await getDocs(q);
+  mainContent.innerHTML = "<h3>مواعيد المرضى</h3>";
+  snap.forEach(d => mainContent.innerHTML += `<div class="list-item">مريض: ${d.data().patientName} - ${d.data().date}</div>`);
 };
 </script>
-
 </body>
 </html>
